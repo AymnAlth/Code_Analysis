@@ -50,6 +50,12 @@ export function ReviewResults({ result }: ReviewResultsProps) {
     return 'text-red-600';
   };
 
+  const getQualityColor = (score: number) => {
+    if (score >= 80) return 'bg-green-100 text-green-800';
+    if (score >= 60) return 'bg-yellow-100 text-yellow-800';
+    return 'bg-red-100 text-red-800';
+  };
+
   const allIssues = [
     ...result.analysis.errors,
     ...result.analysis.warnings,
@@ -94,6 +100,66 @@ export function ReviewResults({ result }: ReviewResultsProps) {
         <h3 className="text-lg font-semibold text-slate-900 mb-3">الملخص العام</h3>
         <p className="text-slate-700 leading-relaxed">{result.summary}</p>
       </div>
+
+      {/* مقاييس جودة الكود */}
+      {result.codeQuality && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">مقاييس جودة الكود</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className={`text-2xl font-bold px-3 py-1 rounded-full ${getQualityColor(result.codeQuality.maintainability)}`}>
+                {result.codeQuality.maintainability}
+              </div>
+              <div className="text-sm text-slate-600 mt-1">قابلية الصيانة</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold px-3 py-1 rounded-full ${getQualityColor(result.codeQuality.readability)}`}>
+                {result.codeQuality.readability}
+              </div>
+              <div className="text-sm text-slate-600 mt-1">القابلية للقراءة</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold px-3 py-1 rounded-full ${getQualityColor(result.codeQuality.performance)}`}>
+                {result.codeQuality.performance}
+              </div>
+              <div className="text-sm text-slate-600 mt-1">الأداء</div>
+            </div>
+            <div className="text-center">
+              <div className={`text-2xl font-bold px-3 py-1 rounded-full ${getQualityColor(result.codeQuality.security)}`}>
+                {result.codeQuality.security}
+              </div>
+              <div className="text-sm text-slate-600 mt-1">الأمان</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* إحصائيات الكود */}
+      {result.metrics && (
+        <div className="bg-white border border-slate-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-slate-900 mb-4">إحصائيات الكود</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{result.metrics.totalLines}</div>
+              <div className="text-sm text-blue-800">إجمالي الأسطر</div>
+            </div>
+            <div className="bg-green-50 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{result.metrics.functionCount}</div>
+              <div className="text-sm text-green-800">عدد الدوال</div>
+            </div>
+            <div className="bg-purple-50 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">{result.metrics.cyclomaticComplexity}</div>
+              <div className="text-sm text-purple-800">التعقد الدوري</div>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-600">
+                {Math.round((result.metrics.commentLines / result.metrics.codeLines) * 100)}%
+              </div>
+              <div className="text-sm text-yellow-800">نسبة التعليقات</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* إحصائيات سريعة */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -192,6 +258,72 @@ export function ReviewResults({ result }: ReviewResultsProps) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* نقاط القوة والضعف */}
+      {(result.strengths?.length || result.weaknesses?.length) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {result.strengths && result.strengths.length > 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-green-900 mb-4">نقاط القوة</h3>
+              <ul className="space-y-2">
+                {result.strengths.map((strength, index) => (
+                  <li key={index} className="flex items-start space-x-2 rtl:space-x-reverse text-green-800">
+                    <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <span>{strength}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.weaknesses && result.weaknesses.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-red-900 mb-4">نقاط الضعف</h3>
+              <ul className="space-y-2">
+                {result.weaknesses.map((weakness, index) => (
+                  <li key={index} className="flex items-start space-x-2 rtl:space-x-reverse text-red-800">
+                    <XCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <span>{weakness}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* التوصيات وأفضل الممارسات */}
+      {(result.recommendations?.length || result.bestPractices?.length) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {result.recommendations && result.recommendations.length > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-blue-900 mb-4">التوصيات</h3>
+              <ul className="space-y-2">
+                {result.recommendations.map((recommendation, index) => (
+                  <li key={index} className="flex items-start space-x-2 rtl:space-x-reverse text-blue-800">
+                    <Lightbulb className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <span>{recommendation}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {result.bestPractices && result.bestPractices.length > 0 && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+              <h3 className="text-lg font-semibold text-purple-900 mb-4">أفضل الممارسات</h3>
+              <ul className="space-y-2">
+                {result.bestPractices.map((practice, index) => (
+                  <li key={index} className="flex items-start space-x-2 rtl:space-x-reverse text-purple-800">
+                    <TrendingUp className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <span>{practice}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

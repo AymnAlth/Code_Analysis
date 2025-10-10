@@ -1,14 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CodeReviewResult, ReviewIssue, ReviewCategory } from '../types';
 import { ConfigManager } from './ConfigManager';
+import { CodeAnalyzer } from './CodeAnalyzer';
 
 export class AIService {
   private static instance: AIService;
   private genAI: GoogleGenerativeAI | null = null;
   private configManager: ConfigManager;
+  private codeAnalyzer: CodeAnalyzer;
 
   private constructor() {
     this.configManager = ConfigManager.getInstance();
+    this.codeAnalyzer = CodeAnalyzer.getInstance();
     this.initializeAI();
   }
 
@@ -68,6 +71,9 @@ export class AIService {
       throw new Error('لم يتم تكوين مفتاح API');
     }
 
+    // تحليل أولي للكود
+    const preAnalysis = this.codeAnalyzer.preAnalyzeCode(code, language);
+    
     const config = this.configManager.getConfig();
     const model = this.genAI.getGenerativeModel({ 
       model: config.ai.model,
@@ -77,13 +83,18 @@ export class AIService {
       }
     });
 
-    const prompt = this.buildReviewPrompt(code, language, config.review.enabledCategories);
+    const prompt = this.buildReviewPrompt(
+      code, 
+      language, 
+      config.review.enabledCategories,
+      preAnalysis
+    );
     
     try {
       const result = await model.generateContent(prompt);
       const response = result.response.text();
       
-      return this.parseAIResponse(response, filename, language);
+      return this.parseAIResponse(response, filename, language, preAnalysis);
     } catch (error) {
       console.error('خطأ في مراجعة الكود:', error);
       throw new Error('فشل في مراجعة الكود: ' + (error as Error).message);
@@ -96,7 +107,8 @@ export class AIService {
   private buildReviewPrompt(
     code: string, 
     language: string, 
-    categories: ReviewCategory[]
+    categories: ReviewCategory[],
+    preAnalysis: any
   ): string {
     const categoriesText = categories.map(cat => {
       const categoryMap = {
@@ -111,37 +123,77 @@ export class AIService {
       return categoryMap[cat] || cat;
     }).join('، ');
 
+    const metricsText = `
+إحصائيات الكود:
+- إجمالي الأسطر: ${preAnalysis.metrics.totalLines}
+- أسطر الكود: ${preAnalysis.metrics.codeLines}
+- أسطر التعليقات: ${preAnalysis.metrics.commentLines}
+- التعقد الدوري: ${preAnalysis.metrics.cyclomaticComplexity}
+- عدد الدوال: ${preAnalysis.metrics.functionCount}
+- عدد الكلاسات: ${preAnalysis.metrics.classCount}
+- الأسطر المكررة: ${preAnalysis.metrics.duplicatedLines}
+`;
+
+    const staticIssuesText = preAnalysis.staticIssues.length > 0 
+      ? `\nالمشاكل المكتشفة مسبقاً:\n${preAnalysis.staticIssues.map(issue => 
+          `- ${issue.message} (السطر ${issue.line})`
+        ).join('\n')}`
+      : '';
+
+    const suggestionsText = preAnalysis.suggestions.length > 0
+      ? `\nاقتراحات التحسين:\n${preAnalysis.suggestions.map(s => `- ${s}`).join('\n')}`
+      : '';
+
     return `
 أنت خبير في مراجعة الكود. قم بمراجعة الكود التالي المكتوب بلغة ${language} وفقاً للمعايير التالية: ${categoriesText}.
+
+${metricsText}${staticIssuesText}${suggestionsText}
 
 الكود المراد مراجعته:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-يرجى تقديم المراجعة بصيغة JSON بالشكل التالي:
+يرجى تقديم مراجعة شاملة ومفصلة بصيغة JSON بالشكل التالي:
 {
-  "overallScore": رقم من 0 إلى 100,
-  "summary": "ملخص عام للمراجعة",
+  "overallScore": رقم من 0 إلى 100 (مع مراعاة الإحصائيات والمشاكل المكتشفة),
+  "summary": "ملخص عام ومفصل للمراجعة مع ذكر النقاط الإيجابية والسلبية",
+  "codeQuality": {
+    "maintainability": رقم من 0 إلى 100,
+    "readability": رقم من 0 إلى 100,
+    "performance": رقم من 0 إلى 100,
+    "security": رقم من 0 إلى 100
+  },
+  "strengths": ["نقاط القوة في الكود"],
+  "weaknesses": ["نقاط الضعف في الكود"],
   "issues": [
     {
       "type": "warning|error|improvement",
       "category": "clean-code|performance|security|best-practices|maintainability|readability|documentation",
       "line": رقم السطر (اختياري),
-      "message": "رسالة مختصرة",
+      "message": "رسالة مختصرة وواضحة",
       "description": "وصف تفصيلي للمشكلة",
-      "suggestedFix": "الحل المقترح",
-      "severity": "low|medium|high|critical"
+      "suggestedFix": "الحل المقترح مع مثال عملي",
+      "severity": "low|medium|high|critical",
+      "codeExample": "مثال على الكود المحسن (اختياري)"
     }
+  ],
+  "recommendations": [
+    "توصيات عامة لتحسين الكود"
+  ],
+  "bestPractices": [
+    "أفضل الممارسات المقترحة لهذا النوع من الكود"
   ]
 }
 
 تأكد من:
-1. تقديم ملاحظات بناءة ومفيدة
-2. تحديد أرقام الأسطر عند الإمكان
-3. تقديم حلول عملية
-4. التركيز على المعايير المطلوبة فقط
-5. استخدام اللغة العربية في الوصف والرسائل
+1. تقديم ملاحظات بناءة ومفيدة ومفصلة
+2. تحديد أرقام الأسطر بدقة عند الإمكان
+3. تقديم حلول عملية مع أمثلة كود محسن
+4. مراعاة الإحصائيات والمشاكل المكتشفة مسبقاً
+5. تقييم شامل لجميع جوانب جودة الكود
+6. استخدام اللغة العربية الواضحة والمفهومة
+7. تقديم توصيات عملية قابلة للتطبيق
 `;
   }
 
@@ -151,7 +203,8 @@ ${code}
   private parseAIResponse(
     response: string, 
     filename: string, 
-    language: string
+    language: string,
+    preAnalysis: any
   ): CodeReviewResult {
     try {
       // استخراج JSON من الاستجابة
@@ -162,8 +215,8 @@ ${code}
 
       const parsed = JSON.parse(jsonMatch[0]);
       
-      // تحويل البيانات إلى التنسيق المطلوب
-      const issues: ReviewIssue[] = (parsed.issues || []).map((issue: any, index: number) => ({
+      // دمج المشاكل المكتشفة مسبقاً مع مشاكل الذكاء الاصطناعي
+      const aiIssues: ReviewIssue[] = (parsed.issues || []).map((issue: any, index: number) => ({
         id: `issue_${Date.now()}_${index}`,
         type: issue.type || 'improvement',
         category: issue.category || 'best-practices',
@@ -172,13 +225,27 @@ ${code}
         message: issue.message || 'ملاحظة عامة',
         description: issue.description || issue.message || 'لا يوجد وصف',
         suggestedFix: issue.suggestedFix,
+        codeExample: issue.codeExample,
         severity: issue.severity || 'medium'
       }));
 
+      // دمج جميع المشاكل
+      const allIssues = [...preAnalysis.staticIssues, ...aiIssues];
+
       // تصنيف المشاكل
-      const warnings = issues.filter(issue => issue.type === 'warning');
-      const errors = issues.filter(issue => issue.type === 'error');
-      const improvements = issues.filter(issue => issue.type === 'improvement');
+      const warnings = allIssues.filter(issue => issue.type === 'warning');
+      const errors = allIssues.filter(issue => issue.type === 'error');
+      const improvements = allIssues.filter(issue => issue.type === 'improvement');
+
+      // حساب النتيجة المحسنة
+      let finalScore = Math.max(0, Math.min(100, parsed.overallScore || 75));
+      
+      // تعديل النتيجة بناءً على المقاييس
+      if (preAnalysis.metrics.cyclomaticComplexity > 15) finalScore -= 10;
+      if (preAnalysis.metrics.duplicatedLines > 10) finalScore -= 5;
+      if (preAnalysis.metrics.commentLines / preAnalysis.metrics.codeLines < 0.05) finalScore -= 5;
+      
+      finalScore = Math.max(0, finalScore);
 
       return {
         id: `review_${Date.now()}`,
@@ -190,8 +257,19 @@ ${code}
           errors,
           improvements
         },
-        overallScore: Math.max(0, Math.min(100, parsed.overallScore || 75)),
-        summary: parsed.summary || 'تمت مراجعة الكود بنجاح'
+        overallScore: finalScore,
+        summary: parsed.summary || 'تمت مراجعة الكود بنجاح',
+        codeQuality: parsed.codeQuality || {
+          maintainability: finalScore,
+          readability: finalScore,
+          performance: finalScore,
+          security: finalScore
+        },
+        strengths: parsed.strengths || [],
+        weaknesses: parsed.weaknesses || [],
+        recommendations: parsed.recommendations || [],
+        bestPractices: parsed.bestPractices || [],
+        metrics: preAnalysis.metrics
       };
 
     } catch (error) {
@@ -204,7 +282,7 @@ ${code}
         language,
         timestamp: new Date(),
         analysis: {
-          warnings: [],
+          warnings: preAnalysis.staticIssues.filter((i: any) => i.type === 'warning'),
           errors: [{
             id: 'parse_error',
             type: 'error',
@@ -213,10 +291,11 @@ ${code}
             description: 'فشل في تحليل استجابة الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.',
             severity: 'high'
           }],
-          improvements: []
+          improvements: preAnalysis.staticIssues.filter((i: any) => i.type === 'improvement')
         },
         overallScore: 0,
-        summary: 'فشل في تحليل الاستجابة من الذكاء الاصطناعي'
+        summary: 'فشل في تحليل الاستجابة من الذكاء الاصطناعي',
+        metrics: preAnalysis.metrics
       };
     }
   }

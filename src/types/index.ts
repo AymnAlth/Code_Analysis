@@ -11,6 +11,28 @@ export interface CodeReviewResult {
   };
   overallScore: number;
   summary: string;
+  codeQuality?: {
+    maintainability: number;
+    readability: number;
+    performance: number;
+    security: number;
+  };
+  strengths?: string[];
+  weaknesses?: string[];
+  recommendations?: string[];
+  bestPractices?: string[];
+  metrics?: {
+    totalLines: number;
+    codeLines: number;
+    commentLines: number;
+    emptyLines: number;
+    averageLineLength: number;
+    maxLineLength: number;
+    cyclomaticComplexity: number;
+    duplicatedLines: number;
+    functionCount: number;
+    classCount: number;
+  };
 }
 
 export interface ReviewIssue {
