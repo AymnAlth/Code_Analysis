@@ -6,9 +6,10 @@ import {
   TrendingUp, 
   Clock,
   FileText,
-  Code
+  Code,
+  CheckCircle
 } from 'lucide-react';
-import { CodeReviewResult, ReviewIssue } from '../types';
+import { CodeReviewResult, ReviewIssue, AdvancedCodeMetrics } from '../types';
 import { REVIEW_CATEGORIES } from '../config';
 
 interface ReviewResultsProps {
@@ -138,7 +139,7 @@ export function ReviewResults({ result }: ReviewResultsProps) {
       {result.metrics && (
         <div className="bg-white border border-slate-200 rounded-lg p-6">
           <h3 className="text-lg font-semibold text-slate-900 mb-4">إحصائيات الكود</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <div className="bg-blue-50 p-3 rounded-lg">
               <div className="text-2xl font-bold text-blue-600">{result.metrics.totalLines}</div>
               <div className="text-sm text-blue-800">إجمالي الأسطر</div>
@@ -156,6 +157,45 @@ export function ReviewResults({ result }: ReviewResultsProps) {
                 {Math.round((result.metrics.commentLines / result.metrics.codeLines) * 100)}%
               </div>
               <div className="text-sm text-yellow-800">نسبة التعليقات</div>
+            </div>
+            <div className="bg-red-50 p-3 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">{result.metrics.codeSmells || 0}</div>
+              <div className="text-sm text-red-800">روائح الكود</div>
+            </div>
+          </div>
+          
+          {/* مقاييس متقدمة إضافية */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-indigo-900 mb-2">مؤشر قابلية الصيانة</h4>
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <div className="text-2xl font-bold text-indigo-600">
+                  {result.metrics.maintainabilityIndex || 'N/A'}
+                </div>
+                <div className="text-sm text-indigo-700">/100</div>
+              </div>
+            </div>
+            
+            <div className="bg-orange-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-orange-900 mb-2">الدين التقني</h4>
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <div className="text-2xl font-bold text-orange-600">
+                  {result.metrics.technicalDebt || 0}
+                </div>
+                <div className="text-sm text-orange-700">دقيقة</div>
+              </div>
+            </div>
+            
+            <div className="bg-teal-50 p-4 rounded-lg">
+              <h4 className="font-semibold text-teal-900 mb-2">الدوال الموثقة</h4>
+              <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                <div className="text-2xl font-bold text-teal-600">
+                  {result.metrics.documentedFunctions || 0}
+                </div>
+                <div className="text-sm text-teal-700">
+                  /{result.metrics.functionCount || 0}
+                </div>
+              </div>
             </div>
           </div>
         </div>

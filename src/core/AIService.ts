@@ -1,17 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CodeReviewResult, ReviewIssue, ReviewCategory } from '../types';
 import { ConfigManager } from './ConfigManager';
-import { CodeAnalyzer } from './CodeAnalyzer';
+import { AdvancedCodeAnalyzer } from './AdvancedCodeAnalyzer';
 
 export class AIService {
   private static instance: AIService;
   private genAI: GoogleGenerativeAI | null = null;
   private configManager: ConfigManager;
-  private codeAnalyzer: CodeAnalyzer;
+  private codeAnalyzer: AdvancedCodeAnalyzer;
 
   private constructor() {
     this.configManager = ConfigManager.getInstance();
-    this.codeAnalyzer = CodeAnalyzer.getInstance();
+    this.codeAnalyzer = AdvancedCodeAnalyzer.getInstance();
     this.initializeAI();
   }
 
@@ -72,7 +72,7 @@ export class AIService {
     }
 
     // تحليل أولي للكود
-    const preAnalysis = this.codeAnalyzer.preAnalyzeCode(code, language);
+    const preAnalysis = this.codeAnalyzer.analyzeCode(code, language);
     
     const config = this.configManager.getConfig();
     const model = this.genAI.getGenerativeModel({ 
@@ -124,18 +124,25 @@ export class AIService {
     }).join('، ');
 
     const metricsText = `
-إحصائيات الكود:
+إحصائيات الكود المتقدمة:
 - إجمالي الأسطر: ${preAnalysis.metrics.totalLines}
 - أسطر الكود: ${preAnalysis.metrics.codeLines}
 - أسطر التعليقات: ${preAnalysis.metrics.commentLines}
 - التعقد الدوري: ${preAnalysis.metrics.cyclomaticComplexity}
+- التعقد المعرفي: ${preAnalysis.metrics.cognitiveComplexity}
+- مؤشر قابلية الصيانة: ${preAnalysis.metrics.maintainabilityIndex}
+- الدين التقني: ${preAnalysis.metrics.technicalDebt} دقيقة
 - عدد الدوال: ${preAnalysis.metrics.functionCount}
 - عدد الكلاسات: ${preAnalysis.metrics.classCount}
 - الأسطر المكررة: ${preAnalysis.metrics.duplicatedLines}
+- روائح الكود: ${preAnalysis.metrics.codeSmells}
+- الدوال الموثقة: ${preAnalysis.metrics.documentedFunctions}
+- تعليقات TODO: ${preAnalysis.metrics.todoComments}
+- المخاطر الأمنية: ${preAnalysis.metrics.hardcodedSecrets}
 `;
 
-    const staticIssuesText = preAnalysis.staticIssues.length > 0 
-      ? `\nالمشاكل المكتشفة مسبقاً:\n${preAnalysis.staticIssues.map(issue => 
+    const staticIssuesText = preAnalysis.issues.length > 0 
+      ? `\nالمشاكل المكتشفة مسبقاً:\n${preAnalysis.issues.map(issue => 
           `- ${issue.message} (السطر ${issue.line})`
         ).join('\n')}`
       : '';
@@ -144,19 +151,24 @@ export class AIService {
       ? `\nاقتراحات التحسين:\n${preAnalysis.suggestions.map(s => `- ${s}`).join('\n')}`
       : '';
 
+    const patternsText = preAnalysis.patterns && preAnalysis.patterns.length > 0
+      ? `\nالأنماط المكتشفة:\n${preAnalysis.patterns.map(p => 
+          `- ${p.name}: ${p.description} (${p.type})`
+        ).join('\n')}`
+      : '';
     return `
 أنت خبير في مراجعة الكود. قم بمراجعة الكود التالي المكتوب بلغة ${language} وفقاً للمعايير التالية: ${categoriesText}.
 
-${metricsText}${staticIssuesText}${suggestionsText}
+${metricsText}${staticIssuesText}${suggestionsText}${patternsText}
 
 الكود المراد مراجعته:
 \`\`\`${language}
 ${code}
 \`\`\`
 
-يرجى تقديم مراجعة شاملة ومفصلة بصيغة JSON بالشكل التالي:
+يرجى تقديم مراجعة شاملة ومفصلة بصيغة JSON بالشكل التالي (مع مراعاة التحليل المسبق):
 {
-  "overallScore": رقم من 0 إلى 100 (مع مراعاة الإحصائيات والمشاكل المكتشفة),
+  "overallScore": رقم من 0 إلى 100 (مع مراعاة جميع المقاييس والمشاكل المكتشفة),
   "summary": "ملخص عام ومفصل للمراجعة مع ذكر النقاط الإيجابية والسلبية",
   "codeQuality": {
     "maintainability": رقم من 0 إلى 100,
@@ -187,13 +199,14 @@ ${code}
 }
 
 تأكد من:
-1. تقديم ملاحظات بناءة ومفيدة ومفصلة
+1. تقديم ملاحظات بناءة ومفيدة ومفصلة مع مراعاة التحليل المسبق
 2. تحديد أرقام الأسطر بدقة عند الإمكان
 3. تقديم حلول عملية مع أمثلة كود محسن
-4. مراعاة الإحصائيات والمشاكل المكتشفة مسبقاً
+4. مراعاة جميع المقاييس والمشاكل والأنماط المكتشفة مسبقاً
 5. تقييم شامل لجميع جوانب جودة الكود
 6. استخدام اللغة العربية الواضحة والمفهومة
 7. تقديم توصيات عملية قابلة للتطبيق
+8. التركيز على المشاكل الحقيقية الموجودة في الكود المرفق
 `;
   }
 
@@ -230,7 +243,7 @@ ${code}
       }));
 
       // دمج جميع المشاكل
-      const allIssues = [...preAnalysis.staticIssues, ...aiIssues];
+      const allIssues = [...preAnalysis.issues, ...aiIssues];
 
       // تصنيف المشاكل
       const warnings = allIssues.filter(issue => issue.type === 'warning');
@@ -241,9 +254,12 @@ ${code}
       let finalScore = Math.max(0, Math.min(100, parsed.overallScore || 75));
       
       // تعديل النتيجة بناءً على المقاييس
-      if (preAnalysis.metrics.cyclomaticComplexity > 15) finalScore -= 10;
-      if (preAnalysis.metrics.duplicatedLines > 10) finalScore -= 5;
-      if (preAnalysis.metrics.commentLines / preAnalysis.metrics.codeLines < 0.05) finalScore -= 5;
+      if (preAnalysis.metrics.cyclomaticComplexity > 15) finalScore -= 15;
+      if (preAnalysis.metrics.duplicatedLines > 10) finalScore -= 10;
+      if (preAnalysis.metrics.commentLines / preAnalysis.metrics.codeLines < 0.05) finalScore -= 8;
+      if (preAnalysis.metrics.codeSmells > 5) finalScore -= 12;
+      if (preAnalysis.metrics.maintainabilityIndex < 50) finalScore -= 20;
+      if (preAnalysis.metrics.hardcodedSecrets > 0) finalScore -= 25;
       
       finalScore = Math.max(0, finalScore);
 
@@ -282,7 +298,7 @@ ${code}
         language,
         timestamp: new Date(),
         analysis: {
-          warnings: preAnalysis.staticIssues.filter((i: any) => i.type === 'warning'),
+          warnings: preAnalysis.issues.filter((i: any) => i.type === 'warning'),
           errors: [{
             id: 'parse_error',
             type: 'error',
@@ -291,7 +307,7 @@ ${code}
             description: 'فشل في تحليل استجابة الذكاء الاصطناعي. يرجى المحاولة مرة أخرى.',
             severity: 'high'
           }],
-          improvements: preAnalysis.staticIssues.filter((i: any) => i.type === 'improvement')
+          improvements: preAnalysis.issues.filter((i: any) => i.type === 'improvement')
         },
         overallScore: 0,
         summary: 'فشل في تحليل الاستجابة من الذكاء الاصطناعي',

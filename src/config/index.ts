@@ -10,6 +10,18 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = [
   { id: 'csharp', name: 'C#', extension: '.cs', enabled: true },
   { id: 'go', name: 'Go', extension: '.go', enabled: true },
   { id: 'rust', name: 'Rust', extension: '.rs', enabled: true },
+  { id: 'php', name: 'PHP', extension: '.php', enabled: true },
+  { id: 'ruby', name: 'Ruby', extension: '.rb', enabled: true },
+  { id: 'swift', name: 'Swift', extension: '.swift', enabled: true },
+  { id: 'kotlin', name: 'Kotlin', extension: '.kt', enabled: true },
+  { id: 'scala', name: 'Scala', extension: '.scala', enabled: true },
+  { id: 'dart', name: 'Dart', extension: '.dart', enabled: true },
+  { id: 'r', name: 'R', extension: '.r', enabled: true },
+  { id: 'matlab', name: 'MATLAB', extension: '.m', enabled: true },
+  { id: 'html', name: 'HTML', extension: '.html', enabled: true },
+  { id: 'css', name: 'CSS', extension: '.css', enabled: true },
+  { id: 'sql', name: 'SQL', extension: '.sql', enabled: true },
+  { id: 'shell', name: 'Shell Script', extension: '.sh', enabled: true },
 ];
 
 // إعدادات افتراضية للتطبيق

@@ -21,20 +21,58 @@ export interface CodeReviewResult {
   weaknesses?: string[];
   recommendations?: string[];
   bestPractices?: string[];
-  metrics?: {
-    totalLines: number;
-    codeLines: number;
-    commentLines: number;
-    emptyLines: number;
-    averageLineLength: number;
-    maxLineLength: number;
-    cyclomaticComplexity: number;
-    duplicatedLines: number;
-    functionCount: number;
-    classCount: number;
-  };
+  metrics?: AdvancedCodeMetrics;
 }
 
+export interface AdvancedCodeMetrics {
+  // مقاييس أساسية
+  totalLines: number;
+  codeLines: number;
+  commentLines: number;
+  emptyLines: number;
+  
+  // مقاييس متقدمة
+  cyclomaticComplexity: number;
+  cognitiveComplexity: number;
+  maintainabilityIndex: number;
+  technicalDebt: number;
+  
+  // مقاييس الجودة
+  duplicatedLines: number;
+  duplicatedBlocks: number;
+  codeSmells: number;
+  
+  // مقاييس الهيكل
+  functionCount: number;
+  classCount: number;
+  interfaceCount: number;
+  moduleCount: number;
+  
+  // مقاييس الأداء
+  nestedLoops: number;
+  recursiveFunctions: number;
+  largeClasses: number;
+  longMethods: number;
+  
+  // مقاييس الأمان
+  hardcodedSecrets: number;
+  sqlInjectionRisks: number;
+  xssVulnerabilities: number;
+  
+  // مقاييس التوثيق
+  documentedFunctions: number;
+  todoComments: number;
+  fixmeComments: number;
+}
+
+export interface CodePattern {
+  type: 'design_pattern' | 'anti_pattern' | 'code_smell';
+  name: string;
+  description: string;
+  location: { line: number; column: number };
+  severity: 'low' | 'medium' | 'high';
+  recommendation: string;
+}
 export interface ReviewIssue {
   id: string;
   type: 'warning' | 'error' | 'improvement';
