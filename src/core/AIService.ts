@@ -50,7 +50,7 @@ export class AIService {
     if (!this.genAI) return false;
     
     try {
-      const model = this.genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = this.genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
       const result = await model.generateContent('Test connection');
       return Boolean(result.response.text());
     } catch (error) {
