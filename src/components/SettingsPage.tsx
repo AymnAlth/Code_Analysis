@@ -106,8 +106,8 @@ export function SettingsPage() {
                   onChange={(e) => updateConfig('ai', { model: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="gemini-2.5-flash">Gemini 1.5 Flash</option>
-                  <option value="gemini-2.5-pro">Gemini 1.5 Pro</option>
+                  <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                  <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
                 </select>
               </div>
 

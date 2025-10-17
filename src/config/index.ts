@@ -29,7 +29,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   ai: {
     provider: 'gemini',
     apiKey: '',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-1.5-flash',
     maxTokens: 4096,
     temperature: 0.1,
   },
